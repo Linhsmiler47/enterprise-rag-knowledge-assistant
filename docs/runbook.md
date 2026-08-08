@@ -64,8 +64,8 @@ make migrate
 
 ## Cost shutdown procedure
 
-See the workspace root [`docs/playbooks/incident-cost-runaway.md`](../../../docs/playbooks/incident-cost-runaway.md)
-for the general procedure. Project-specific:
+See the incubating workspace's `docs/playbooks/incident-cost-runaway.md` for the general
+procedure, if this project is still incubating there. Project-specific:
 
 ```bash
 # Scale the demo Container App to zero immediately

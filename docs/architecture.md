@@ -92,9 +92,8 @@ OpenTelemetry tracing, prompt/evaluation tracing, cost/token monitoring.
 
 ### v0.5 — Platform
 
-Kubernetes/Helm — only if a learning or scale objective justifies it (see workspace
-[ADR-0003](../../../docs/adr/0003-containers-first-kubernetes-optional.md) — Container Apps
-remains the default).
+Kubernetes/Helm — only if a learning or scale objective justifies it (the incubating workspace's
+ADR-0003 sets containers-first; Container Apps remains the default here regardless).
 
 ### v0.6 — MCP
 

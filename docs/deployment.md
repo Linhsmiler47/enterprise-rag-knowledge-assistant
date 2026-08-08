@@ -43,9 +43,9 @@ terraform apply -var-file=dev.tfvars ...
 
 ## Authentication
 
-**Target (per workspace [ADR-0006](../../../docs/adr/0006-oidc-over-long-lived-cloud-credentials.md)):**
-GitHub Actions authenticates to Azure via OIDC / workload identity federation — no long-lived
-Azure credential stored as a GitHub Secret.
+**Target (per the incubating workspace's ADR-0006 — see its `docs/adr/` if this project is still
+incubating there):** GitHub Actions authenticates to Azure via OIDC / workload identity
+federation — no long-lived Azure credential stored as a GitHub Secret.
 
 **Current status: prepared, not completed.** Setting up the federated credential requires an
 Azure AD app registration and role assignment, which requires an authenticated `az login`

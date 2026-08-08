@@ -4,11 +4,11 @@
 
 ## Context
 
-Workspace [ADR-0004](../../../../docs/adr/0004-cloud-targets-azure-current-primary-aws-secondary.md)
-sets Azure as the current primary cloud target; workspace
-[ADR-0003](../../../../docs/adr/0003-containers-first-kubernetes-optional.md) sets containers-first,
-Kubernetes-optional. This project needs one real compute target for its first cloud deployment,
-kept cheap enough for a personal portfolio demo.
+The incubating workspace's ADR-0004 sets Azure as the current primary cloud target; its ADR-0003
+sets containers-first, Kubernetes-optional (see the workspace root `docs/adr/` if this project is
+still incubating there — this project does not depend on those documents existing). This project
+needs one real compute target for its first cloud deployment, kept cheap enough for a personal
+portfolio demo.
 
 ## Decision
 
