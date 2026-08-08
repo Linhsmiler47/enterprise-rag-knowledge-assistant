@@ -1,0 +1,37 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Terraform -- .terraform.lock.hcl IS committed (reproducible provider versions, like uv.lock)
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.auto.tfvars
+*.auto.tfvars.json
+secrets.tfvars
+# Note: plain <env>.tfvars (non-secret, reproducible) is intentionally NOT ignored.

@@ -1,0 +1,66 @@
+name: Deploy
+
+# main -> dev automatically (build-once-deploy-many: reuses the most recent release image).
+# production requires a published release + the "production" GitHub Environment's required
+# reviewer approval. See docs/deployment.md -- OIDC federated credential setup is a prepared,
+# not-yet-completed manual prerequisite (docs/deployment.md "Authentication").
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        required: true
+
+permissions:
+  id-token: write # required for OIDC
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: >-
+      ${{ github.event_name == 'release' && 'production'
+          || inputs.environment
+          || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC -- no client secret)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Determine image reference
+        id: image
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "ref=ghcr.io/${{ github.repository }}:${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=ghcr.io/${{ github.repository }}:sha-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Terraform apply
+        working-directory: infra/environments/dev
+        env:
+          TF_VAR_image: ${{ steps.image.outputs.ref }}
+          TF_VAR_ghcr_username: ${{ github.actor }}
+          TF_VAR_ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          terraform init -backend-config="resource_group_name=${{ secrets.TF_STATE_RG }}" \
+                          -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+                          -backend-config="container_name=tfstate" \
+                          -backend-config="key=enterprise-rag-knowledge-assistant/dev.tfstate"
+          terraform apply -auto-approve -var-file=dev.tfvars
+
+      - name: Smoke test
+        working-directory: infra/environments/dev
+        run: |
+          APP_URL=$(terraform output -raw app_url)
+          cd ../../..
+          ./scripts/smoke-test.sh "$APP_URL"

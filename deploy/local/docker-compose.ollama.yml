@@ -1,0 +1,21 @@
+# Optional slice: containerized Ollama, for developers who don't have it installed on the host.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.override.yml -f docker-compose.ollama.yml up
+# Not part of the default `make dev` stack -- see docs/local-development.md. If Ollama is
+# already running on the host (or LLM_PROVIDER=openai is configured), this slice is unnecessary.
+services:
+  app:
+    environment:
+      LLM_BASE_URL: http://ollama:11434/v1
+    depends_on:
+      - ollama
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    # First run: docker exec <ollama-container> ollama pull qwen2.5:0.5b all-minilm
+
+volumes:
+  ollama_models:

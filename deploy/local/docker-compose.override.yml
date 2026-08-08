@@ -1,0 +1,7 @@
+# Dev-only overrides: bind-mount source for hot reload instead of baking it into the image.
+# See learning/notes/01-docker.md in the workspace root for why dev/prod compose differ this way.
+services:
+  app:
+    volumes:
+      - ../../src:/app/src
+    command: ["uvicorn", "enterprise_rag_knowledge_assistant.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
