@@ -3,6 +3,13 @@
 **Status:** L4 — Portfolio-ready (locally runnable, CI/CD + IaC defined and validated, not yet
 deployed) *(see `docs/product.md` for the maturity progression this follows)*
 
+Extracted to a standalone repository and validated against real GitHub-hosted runners on
+2026-08-16: `uv sync`, `make lint`, `make test` (22/22), `make ci`, `make build`,
+`terraform validate`, and `make smoke` all pass outside the original monorepo; `ci.yml` passed on
+its first real run on `push`. Azure deployment remains prepared, not executed — see
+[ADR-0009](docs/adr/0009-hosting-strategy-for-personal-demo.md) and
+[`docs/deployment.md`](docs/deployment.md).
+
 Grounded question-answering over internal engineering knowledge, with citations
 
 ## Problem
