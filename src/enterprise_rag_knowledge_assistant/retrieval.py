@@ -41,7 +41,7 @@ def retrieve(
         similarity = 1.0 - float(dist)
         results.append(
             RetrievedChunk(
-                document_filename=document.filename,
+                document_filename=document.original_filename,
                 chunk_id=chunk.id,
                 chunk_index=chunk.chunk_index,
                 content=chunk.content,

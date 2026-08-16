@@ -5,7 +5,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from enterprise_rag_knowledge_assistant.api.routes.documents import router as documents_router
 from enterprise_rag_knowledge_assistant.api.routes.health import router as health_router
 from enterprise_rag_knowledge_assistant.api.routes.query import router as query_router
 from enterprise_rag_knowledge_assistant.config import get_settings
@@ -27,5 +29,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(health_router)
 app.include_router(query_router)
+app.include_router(documents_router)

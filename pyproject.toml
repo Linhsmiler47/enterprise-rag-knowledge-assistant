@@ -11,6 +11,8 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "pgvector>=0.3",
     "openai>=1.40",
+    "minio>=7.2",
+    "python-multipart>=0.0.12",
 ]
 
 [dependency-groups]
