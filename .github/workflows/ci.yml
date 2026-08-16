@@ -26,12 +26,29 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      minio:
+        image: minio/minio:latest
+        env:
+          MINIO_ROOT_USER: ragminio
+          MINIO_ROOT_PASSWORD: ragminio123
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -f http://localhost:9000/minio/health/live"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+        # Service containers can't override the image entrypoint's args via `options`, so this
+        # relies on the image's default command; see docs/local-development.md for the compose
+        # equivalent that does pass `server /data --console-address ":9001"`.
 
     env:
-      # Integration tests need a real database (see tests/conftest.py); they never call a live
-      # LLM/embedding provider -- tests/fakes.py stands in, so no external service dependency
-      # beyond Postgres.
+      # Integration tests need a real database and object store (see tests/conftest.py); they
+      # never call a live LLM/embedding provider -- tests/fakes.py stands in, so no external
+      # service dependency beyond Postgres + MinIO, both of which run as no-credential-needed
+      # local service containers here (dev-only credentials, not secrets).
       DATABASE_URL: postgresql+psycopg://rag:rag@localhost:5432/rag
+      MINIO_ENDPOINT: localhost:9000
 
     steps:
       - uses: actions/checkout@v4
@@ -49,3 +66,35 @@ jobs:
 
       - name: make ci
         run: make ci
+
+      - name: Validate docker-compose config
+        run: |
+          docker compose -f deploy/local/docker-compose.yml \
+            -f deploy/local/docker-compose.override.yml config --quiet
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
