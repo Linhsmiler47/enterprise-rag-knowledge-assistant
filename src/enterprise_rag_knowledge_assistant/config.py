@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 4
     retrieval_similarity_threshold: float = 0.3
 
+    # Guardrails (see ADR-0008)
+    max_ingest_file_size_bytes: int = 1_000_000  # 1 MB — generous for internal Markdown/text docs
+
 
 @lru_cache
 def get_settings() -> Settings:

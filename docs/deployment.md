@@ -1,6 +1,15 @@
 # Deployment
 
-## Current Azure topology
+## Hosting strategy under review
+
+[ADR-0009](adr/0009-hosting-strategy-for-personal-demo.md) proposes switching the *first* deployed
+environment from the ACA topology below to an Azure VM + Docker Compose, started/deallocated on
+demand, given this project's actual usage pattern (personal, low-traffic, no 24/7 requirement).
+That ADR is **Proposed, not approved** — the topology below (already validated via
+`terraform validate`, never deployed) remains the documented target until/unless ADR-0009 is
+approved and new VM Terraform is written.
+
+## Current Azure topology (ADR-0006, as currently written — see ADR-0009 for a proposed change)
 
 ```
                     GitHub Actions

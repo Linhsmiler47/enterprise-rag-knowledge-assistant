@@ -32,6 +32,18 @@ class FakeLLMProvider:
         self._canned_answer = canned_answer
         self.chat_calls: list[tuple[str, str]] = []
 
+    @property
+    def provider_name(self) -> str:
+        return "fake"
+
+    @property
+    def chat_model(self) -> str:
+        return "fake-chat"
+
+    @property
+    def embedding_model(self) -> str:
+        return "fake-embed"
+
     def embed(self, text: str) -> list[float]:
         return _fake_embed_one(text)
 

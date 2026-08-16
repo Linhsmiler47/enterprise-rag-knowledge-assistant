@@ -16,8 +16,21 @@ from enterprise_rag_knowledge_assistant.config import Settings, get_settings
 class LLMProvider:
     def __init__(self, settings: Settings) -> None:
         self._client = OpenAI(base_url=settings.llm_base_url, api_key=settings.llm_api_key)
+        self._provider_name = settings.llm_provider
         self._chat_model = settings.llm_chat_model
         self._embedding_model = settings.llm_embedding_model
+
+    @property
+    def provider_name(self) -> str:
+        return self._provider_name
+
+    @property
+    def chat_model(self) -> str:
+        return self._chat_model
+
+    @property
+    def embedding_model(self) -> str:
+        return self._embedding_model
 
     def embed(self, text: str) -> list[float]:
         response = self._client.embeddings.create(model=self._embedding_model, input=text)

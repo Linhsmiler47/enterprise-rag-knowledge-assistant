@@ -51,6 +51,14 @@ ingestion.py: load ──► chunking.py: chunk ──► providers.py: embed �
 | `cli.py` | `init-db`, `ingest` — wired to `make migrate` / `make ingest` |
 | `scripts/evaluate.py` | Evaluation harness — see `evaluation.md` |
 
+## Diagrams
+
+[`docs/diagrams/`](diagrams/) has visual versions of the architecture above and the
+`POST /query`/ingestion flows, plus a roadmap diagram that explicitly separates what's implemented
+(v0.1, solid) from what isn't (v0.2+, dashed). See [`docs/diagrams/README.md`](diagrams/README.md)
+for the current/future convention and the current source-only status (SVG export is a documented
+manual step — not automatable in the environment this change was produced in).
+
 ## Major decisions
 
 See [`adr/`](adr/):
@@ -62,6 +70,9 @@ See [`adr/`](adr/):
 - [ADR-0005](adr/0005-evaluation-approach.md) — simple harness over RAGAS
 - [ADR-0006](adr/0006-azure-container-apps.md) — Azure Container Apps as deployment target
 - [ADR-0007](adr/0007-demo-persistence-cost-tradeoff.md) — demo vs. production persistence tradeoff
+- [ADR-0008](adr/0008-guardrail-baseline.md) — guardrail baseline (input/retrieval/generation/output)
+- [ADR-0009](adr/0009-hosting-strategy-for-personal-demo.md) — hosting strategy for a personal
+  low-traffic demo (**Proposed**, not yet approved/deployed)
 
 ## Known constraints
 
@@ -74,7 +85,8 @@ See [`adr/`](adr/):
 
 ## Potential future evolution
 
-Everything below is roadmap, not current architecture — see also `product.md`'s non-goals.
+Everything below is roadmap, not current architecture — see also `product.md`'s non-goals and
+[`docs/diagrams/roadmap.excalidraw`](diagrams/roadmap.excalidraw) for the visual version.
 
 ### v0.2 — Retrieval quality
 

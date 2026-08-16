@@ -54,6 +54,22 @@ def test_reingesting_unchanged_document_is_idempotent(
     assert db_session.query(Chunk).count() == first.chunk_count
 
 
+def test_oversized_file_is_skipped_not_ingested(
+    db_session: Session, fake_provider: FakeLLMProvider, tmp_path
+) -> None:
+    """ADR-0008 guardrail: files over max_ingest_file_size_bytes are rejected before embedding."""
+    from enterprise_rag_knowledge_assistant.config import get_settings
+
+    settings = get_settings().model_copy(update={"max_ingest_file_size_bytes": 10})
+    path = tmp_path / "huge.md"
+    path.write_text("This content is definitely longer than ten bytes.")
+
+    result = ingest_file(path, db_session, fake_provider, settings)
+
+    assert result.status == "skipped"
+    assert db_session.query(Document).count() == 0
+
+
 def test_changed_document_is_reingested(
     db_session: Session, fake_provider: FakeLLMProvider, tmp_path
 ) -> None:

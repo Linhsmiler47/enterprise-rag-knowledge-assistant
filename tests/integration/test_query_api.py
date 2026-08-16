@@ -76,3 +76,25 @@ def test_query_with_empty_index_reports_insufficient_evidence(
 def test_query_rejects_empty_question(api_client: TestClient) -> None:
     response = api_client.post("/query", json={"question": ""})
     assert response.status_code == 422
+
+
+def test_grounded_answer_sends_hardened_system_prompt(
+    api_client: TestClient, db_session: Session, fake_provider: FakeLLMProvider, tmp_path
+) -> None:
+    """ADR-0008: the system prompt actually sent to the provider treats context as data,
+    not instructions -- the real injection-resistance check (does a live model comply) is
+    EVAL-011/EVAL-012 in scripts/evaluate.py, not reproducible with the fake provider."""
+    _ingest(
+        db_session,
+        fake_provider,
+        tmp_path,
+        "backup.md",
+        "Database backups run daily and are retained for thirty days.",
+    )
+
+    api_client.post("/query", json={"question": "How often do database backups run?"})
+
+    assert fake_provider.chat_calls
+    system_prompt, _ = fake_provider.chat_calls[-1]
+    assert "data" in system_prompt.lower()
+    assert "never" in system_prompt.lower()

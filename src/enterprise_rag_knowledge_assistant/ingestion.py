@@ -39,6 +39,16 @@ def ingest_file(
         logger.info("skipping unsupported file type: %s", path.name)
         return IngestResult(filename=path.name, status="skipped")
 
+    file_size = path.stat().st_size
+    if file_size > settings.max_ingest_file_size_bytes:
+        logger.warning(
+            "skipping oversized file: %s (%d bytes > %d byte limit)",
+            path.name,
+            file_size,
+            settings.max_ingest_file_size_bytes,
+        )
+        return IngestResult(filename=path.name, status="skipped")
+
     content = path.read_text(encoding="utf-8")
     content_hash = _content_hash(content)
 

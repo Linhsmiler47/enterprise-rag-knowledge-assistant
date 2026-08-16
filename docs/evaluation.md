@@ -13,14 +13,49 @@ For a 10-case v1 set with a locally-run model, a transparent harness that measur
 judged more valuable than a framework dependency that would need its own justification. See
 [ADR-0005](adr/0005-evaluation-approach.md).
 
+## RAG KPI / metric framework
+
+A layered view of what "quality" means for this system, and which layer each existing/planned
+metric belongs to. This is a reorganization of what the harness already measures, plus an honest
+accounting of what it *doesn't yet* measure — no numbers below are invented; anything not
+currently measurable says so explicitly.
+
+| Layer | Metric | Measured today? | Source |
+|---|---|---|---|
+| Retrieval | Hit-rate (correct source document cited) | ✅ | `scripts/evaluate.py` |
+| Retrieval | Retrieval-only latency (isolated from generation) | ❌ not yet | needs the timing split added in this change (see below) |
+| Retrieval | Recall@K / ranked-relevance metrics (MRR, NDCG) | ❌ not yet | blocked on a dataset with multiple labeled-relevant chunks per question; current cases label one expected document each, not a ranked relevance set |
+| Generation | Groundedness (answer matches expected answerable/not) | ✅ | `scripts/evaluate.py` |
+| Generation | Answer keyword presence (proxy for factual correctness) | ✅ | `scripts/evaluate.py` |
+| Generation | Unsupported-elaboration rate | ⚠️ partial — caught once by manual read (EVAL-004 below), not by an automated check | no metric yet |
+| Abstention | Correct refusal rate (unanswerable question → insufficient-evidence response) | ✅ | folded into groundedness accuracy today (2/2 unanswerable cases) |
+| Abstention | False-refusal rate (answerable question wrongly refused) | ✅ | folded into groundedness accuracy today (0/8 so far) |
+| Guardrail | Prompt-injection resistance (question tries to override system instructions) | ✅ *(new this change)* | `scripts/evaluate.py` — see EVAL-011/012 below |
+| Operational | End-to-end latency | ✅ | `scripts/evaluate.py` |
+| Operational | Retrieval-only / generation-only latency split | ❌ not yet | needs the timing split added in this change |
+| Operational | Indexed chunk/doc count, error rate by category | ❌ not yet | needs the structured logging added in this change — see `docs/observability.md` |
+
+Retrieval-only/generation-only latency and structured operational fields are being added to the
+application's logging in this change (`docs/observability.md`), but are not yet aggregated back
+into this evaluation report — that aggregation is future work, not claimed here.
+
 ## Eval set
 
-10 curated questions (`scripts/evaluate.py::EVAL_SET`) against the four sample documents:
-8 answerable (with a known correct source document and expected answer keywords) and 2
-deliberately unanswerable (topics absent from the knowledge base — parental leave policy,
-microservice language standard).
+12 curated questions (`scripts/evaluate.py::EVAL_SET`), organized by category:
 
-## Results — run on 2026-08-08
+| Category | Cases | Purpose |
+|---|---|---|
+| Direct factual (answerable) | EVAL-001 – EVAL-008 | Retrieval hit-rate + groundedness against the 4 sample documents |
+| Unanswerable | EVAL-009, EVAL-010 | Abstention — confirms no fabricated answer for out-of-corpus questions |
+| Prompt injection (question-borne) | EVAL-011, EVAL-012 | Guardrail — confirms an adversarial question can't override the system prompt or extract it |
+
+The prompt-injection category tests only injection carried in the *user's question*. Injection
+carried inside a *retrieved document* (a poisoned knowledge-base entry) is a related but distinct
+risk — not yet covered by a dataset case, since it requires a dedicated fixture document rather
+than a question change; tracked as backlog, not silently assumed safe (see
+`docs/adr/0008-guardrail-baseline.md`).
+
+## Results — run on 2026-08-08 (EVAL-001 – EVAL-010, 10 cases)
 
 | Metric | Result |
 |---|---|
@@ -30,6 +65,14 @@ microservice language standard).
 | Latency — min | 0.05s (insufficient-evidence cases short-circuit before calling the LLM) |
 | Latency — max | 6.56s (first real generation call — cold start) |
 | Latency — avg | 2.93s |
+
+**EVAL-011 and EVAL-012 (prompt injection) were added in this change and have not yet been run
+against the live system in this environment** (no local Ollama/Docker stack available here — see
+`docs/observability.md`'s note on where this work was done). They are covered by the CI unit test
+suite's fake-provider path (asserting the system prompt is never overridden), but the *live*
+groundedness/latency numbers above predate them. Re-run `make eval` after pulling this change and
+update this table with the 12-case result — do not treat the 10/10 figure above as covering the
+new cases.
 
 Full per-case output (question, answer, latency) is reproducible by running `make eval` — not
 reproduced here beyond the summary to avoid this document going stale relative to the actual
@@ -61,7 +104,7 @@ the v0.2 roadmap in `architecture.md`.
 
 ## Limitations of the eval set itself
 
-- 10 cases is enough to validate the harness and catch gross regressions, not enough to be
+- 12 cases is enough to validate the harness and catch gross regressions, not enough to be
   statistically meaningful. Expanding this is explicit v0.2 scope.
 - All questions are single-hop, single-document — no case requires synthesizing across multiple
   documents.
