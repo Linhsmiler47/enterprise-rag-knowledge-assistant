@@ -16,6 +16,12 @@ describe outcomes/constraints, not technology choices (those belong in ADRs).
 | FR-006 | Every citation in a response must correspond to a chunk actually retrieved for that question (document name + chunk id). |
 | FR-007 | When retrieval similarity for all candidate chunks falls below a configured threshold, the system must return an explicit "insufficient evidence" response instead of generating an answer. |
 | FR-008 | `/health` must report whether the vector index currently holds any content; `/ready` must report database reachability; `/live` must report process liveness. |
+| FR-009 | `POST /documents/upload` must accept a supported file, store it in object storage, and create a document record with status "uploaded" -- without ingesting it synchronously. |
+| FR-010 | An unsupported extension or oversized upload must be rejected (422/413) before being stored. |
+| FR-011 | Uploading content identical (by hash) to an existing document must return the existing document, not create a duplicate. |
+| FR-012 | `POST /documents/{id}/ingest` must transition a document through ingesting -> ingested (with chunk count) or ingesting -> failed (with a safe, non-leaking error message), and must be idempotent when the document is already ingested. |
+| FR-013 | `GET /documents` and `GET /documents/{id}` must report each document's current status; `DELETE /documents/{id}` must remove the document, its chunks, and its stored object. |
+| FR-014 | A grounded answer for a question covered by an uploaded (not just CLI-ingested) document must cite that document by its display name. |
 
 ## Non-functional requirements
 
@@ -28,6 +34,8 @@ describe outcomes/constraints, not technology choices (those belong in ADRs).
 | NFR-005 | The container image must run as a non-root user and expose functioning health/readiness endpoints suitable for an orchestrator or load balancer. |
 | NFR-006 | Ingestion input must be validated for file extension and size before processing (basic defense against malformed/oversized uploads). |
 | NFR-007 | Any cloud demo deployment must stay within a small documented monthly cost guardrail (see `docs/deployment.md`). |
+| NFR-008 | Object storage credentials (MinIO) are local/dev-only defaults, documented in `.env.example`, never valid for a real deployment (see ADR-0010). |
+| NFR-009 | CI must not require a paid LLM API, local Ollama, or cloud credential -- Postgres and MinIO run as no-credential-needed local service containers (see `ci.yml`). |
 
 ## Traceability
 
@@ -40,6 +48,9 @@ describe outcomes/constraints, not technology choices (those belong in ADRs).
 | US-003 | FR-006 | API test — citation correctness |
 | US-004 | FR-007 | evaluation case — deliberately unanswerable question |
 | US-005 | FR-008 | unit test (`/live`) + integration test (`/ready`, `/health` with DB) |
+| US-006 | FR-009, FR-010, FR-011 | integration tests — upload accepted/rejected/deduplicated |
+| US-007 | FR-013 | integration tests — list/detail/delete |
+| US-008 | FR-012, FR-014 | integration tests — ingest trigger state machine + query-after-upload citation |
 
 This is a lightweight traceability table, not a requirements-management system — it exists to
 demonstrate discipline, not to generate paperwork overhead.

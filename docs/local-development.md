@@ -4,6 +4,7 @@
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - Docker (for the containerized workflow / `make build`)
+- Node.js 22+ (only if working on `frontend/`)
 
 ## Quick start (golden path)
 
@@ -17,7 +18,7 @@ cd enterprise-rag-knowledge-assistant
 ./scripts/bootstrap.sh   # or: make setup
 
 # 2. Get an LLM/embedding provider running (skip if LLM_PROVIDER=openai with a real key in .env)
-#    Bring up the app + db + a containerized Ollama, then pull the two models once:
+#    Bring up the app + db + MinIO + a containerized Ollama, then pull the two models once:
 docker compose -f deploy/local/docker-compose.yml \
   -f deploy/local/docker-compose.override.yml \
   -f deploy/local/docker-compose.ollama.yml up -d
@@ -26,7 +27,7 @@ docker exec local-ollama-1 ollama pull all-minilm
 curl http://localhost:11434/api/version   # sanity check: Ollama is reachable
 
 # 3. Start the app (if not already up from step 2)
-make dev
+make dev   # now also starts MinIO -- see deploy/local/docker-compose.yml
 
 # 4. Create the schema (idempotent — safe to re-run)
 make migrate
@@ -80,6 +81,24 @@ If you don't already have an Ollama reachable at `localhost:11434`, add the `doc
 slice (step 2 above) — otherwise `make ingest` / `/query` will fail with a connection-refused error
 against `LLM_BASE_URL`.
 
+## Product UI workflow (Phase 2, no CLI needed)
+
+An alternative golden path that doesn't touch `make ingest` at all:
+
+```bash
+make dev   # backend + Postgres + MinIO
+
+cd frontend
+npm install
+cp .env.local.example .env.local   # first time only
+npm run dev   # http://localhost:3000
+```
+
+Then in the browser: **Upload** a `.md`/`.txt` file → go to **Documents**, click **Ingest** next
+to it (status moves `uploaded` → `ingesting` → `ingested`, or `failed` with a reason if the LLM
+provider isn't reachable) → go to **Ask** and ask a question, inspect the grounded answer and its
+citations. See [ADR-0011](adr/0011-phase2-stack.md) for why this stack (Next.js + MinIO).
+
 ## Native workflow (fastest inner loop, no Docker)
 
 ```bash
@@ -108,6 +127,9 @@ make fmt   # auto-fix
 make ci   # lint + test + build — the same target CI runs
 ```
 
+For the frontend: `cd frontend && npm run lint && npm run build` (the CI `frontend` job runs the
+same two commands).
+
 ## Common issues
 
 | Symptom | Likely cause | Fix |
@@ -117,3 +139,6 @@ make ci   # lint + test + build — the same target CI runs
 | `.env` missing values after adding a new setting | `.env` predates the new field in `config.py` | Compare against `.env.example` and add the missing key |
 | `make ingest` fails with `httpx.ConnectError: Connection refused` on `localhost:11434` | No Ollama reachable at `LLM_BASE_URL` | Bring up the `docker-compose.ollama.yml` slice (step 2 of Quick start) and pull the models |
 | `/query` always returns `grounded: false` for a question you know is covered | Index is empty or `RETRIEVAL_SIMILARITY_THRESHOLD` too high | Check `curl localhost:8000/health` for `indexed_chunks`; re-run `make ingest` if 0 |
+| `POST /documents/upload` returns a connection error, or `/documents/{id}/ingest` always fails | MinIO not reachable at `MINIO_ENDPOINT` | Confirm `make dev` is up (`docker ps` should show a `minio` container); check `curl localhost:9000/minio/health/live` |
+| Upload succeeds but ingest always returns `status: "failed"` | No LLM provider reachable (same root cause as the CLI's connection-refused case) | Same fix — bring up `docker-compose.ollama.yml` and pull the models; check `ingestion_error` in the response and the app's server logs for the real traceback |
+| Frontend can't reach the backend (`Failed to fetch`) | `NEXT_PUBLIC_API_URL` unset/wrong, or CORS | Confirm `frontend/.env.local` points at the backend URL and `CORS_ALLOWED_ORIGINS` (backend `.env`) includes the frontend's origin (defaults already match `localhost:3000`/`localhost:8000`) |

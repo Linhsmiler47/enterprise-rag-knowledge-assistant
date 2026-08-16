@@ -5,6 +5,17 @@ real PostgreSQL/pgvector, real Ollama (`qwen2.5:0.5b` chat, `all-minilm` embeddi
 knowledge base in `data/sample/`. Not the test fakes used in CI (see
 [ADR-0005](adr/0005-evaluation-approach.md) for why those are separate).
 
+## Phase 2 evaluation impact
+
+`make eval` is unchanged and keeps ingesting via the CLI/directory path — evaluation
+reproducibility shouldn't depend on the UI. Per the Phase 2 approval, the only addition is a
+spot-check (not a new automated benchmark) that citations still resolve correctly for a document
+that entered through *upload* rather than the CLI: verified via
+`test_query_after_upload_ingestion_cites_uploaded_document` (automated, `tests/integration/`,
+fake LLM provider) and, separately, a live manual check against the real containerized stack
+(Postgres + MinIO + app) confirming an uploaded document reaches `status: "ingested"` and its
+citation appears correctly in a live `/query` response. The v0.1 baseline below is untouched.
+
 ## Why a simple harness instead of RAGAS
 
 A framework like RAGAS adds real value once an LLM-as-judge and a larger eval set are in play.

@@ -4,11 +4,17 @@
 
 | Diagram | Shows |
 |---|---|
-| `current-architecture.excalidraw` | The full query + ingestion path as implemented today |
+| `current-architecture.excalidraw` | The Phase 1 backend query + CLI ingestion path (no UI/upload) |
 | `rag-query-flow.excalidraw` | Step-by-step `POST /query` request lifecycle, including the evidence-sufficiency branch |
-| `ingestion-flow.excalidraw` | Step-by-step `ingest_file()` lifecycle, including all guardrail checks |
-| `roadmap.excalidraw` | v0.1 (current) vs. v0.2–v0.7 (future, not implemented) |
+| `ingestion-flow.excalidraw` | Step-by-step `ingest_file()` (CLI) lifecycle, including all guardrail checks |
+| `product-upload-flow.excalidraw` | Phase 2: upload → status → manual ingest trigger → ingested/failed |
+| `local-product-architecture.excalidraw` | Phase 2: full local stack — UI, backend, Postgres, MinIO, LLM provider, all local |
+| `roadmap.excalidraw` | Phase 1–2 (done) vs. Phase 3–10 (future, not implemented) |
 | `observability-baseline.excalidraw` | Current structured-logging baseline vs. a future OpenTelemetry platform |
+
+`local-product-architecture.excalidraw` is the Phase 2 superset of `current-architecture.excalidraw`
+(adds the UI and MinIO) — both are kept since one shows the backend in isolation (still true
+without the UI running) and the other shows the full product.
 
 ## Conventions
 

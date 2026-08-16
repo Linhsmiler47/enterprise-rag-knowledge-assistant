@@ -27,7 +27,7 @@ vs. future, clearly labeled) are in [`docs/diagrams/`](docs/diagrams/).
 
 ```bash
 ./scripts/bootstrap.sh
-make dev             # start app + Postgres/pgvector
+make dev             # start app + Postgres/pgvector + MinIO
 make migrate         # create schema + pgvector extension
 make ingest           # index data/sample/*.md
 curl -s localhost:8000/query -X POST -H 'Content-Type: application/json' \
@@ -39,6 +39,19 @@ local Ollama at `localhost:11434`) — see [`docs/local-development.md`](docs/lo
 for the Ollama setup step if you don't already have one running.
 
 Full instructions: [`docs/local-development.md`](docs/local-development.md).
+
+## Product UI (Phase 2)
+
+Upload, manage, and ask questions about documents without the CLI:
+
+```bash
+make dev                      # backend + Postgres + MinIO
+cd frontend && npm install && npm run dev   # http://localhost:3000
+```
+
+Upload → Documents (trigger ingest) → Ask. The CLI (`make ingest`) still works for
+operator/CI/eval use — the UI doesn't replace it, it adds a path that doesn't need one. See
+[`docs/adr/0011-phase2-stack.md`](docs/adr/0011-phase2-stack.md).
 
 ## Testing
 
@@ -55,9 +68,10 @@ docker run -p 8000:8000 enterprise-rag-knowledge-assistant:latest
 
 ## CI
 
-`.github/workflows/ci.yml` runs `make ci` (lint + test + build) on every pull request and push to
-`main`. `.github/workflows/security.yml` runs dependency audit, secret scanning, and a filesystem
-vulnerability scan.
+`.github/workflows/ci.yml` runs two independent jobs on every pull request and push to `main`:
+`ci` (`make ci` — lint + test + build, with Postgres + MinIO service containers) and `frontend`
+(`npm ci && npm run lint && npm run build`). `.github/workflows/security.yml` runs dependency
+audit, secret scanning, and a filesystem vulnerability scan.
 
 ## Documentation
 
