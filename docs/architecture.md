@@ -13,34 +13,67 @@ repository and user data stays local.
 ### Query flow
 
 ```mermaid
-flowchart LR
-    Request[POST /query] --> Route[api/routes/query.py]
+flowchart TD
+    Request[POST /query JSON] --> Validate[QueryRequest validates question length]
+    Validate --> Dependencies[FastAPI injects DB session and LLMProvider]
+    Dependencies --> Route[query.query]
     Route --> Answer[answering.answer_question]
     Answer --> Retrieve[retrieval.retrieve]
-    Retrieve --> Embed[providers.embed question]
-    Embed --> Vector[(PostgreSQL / pgvector)]
-    Vector --> Evidence{Any similarity above threshold?}
-    Evidence -- No --> Refuse[Return insufficient evidence]
-    Evidence -- Yes --> Prompt[Build prompt from qualifying chunks]
-    Prompt --> Generate[providers.chat]
-    Generate --> Response[Return grounded answer and citations]
+    Retrieve --> Embed[LLMProvider.embed question]
+    Embed --> Search[Cosine-distance top-k query]
+    Search --> DB[(PostgreSQL + pgvector<br/>Chunk joined to Document)]
+    DB --> Results[RetrievedChunk list with similarity]
+    Results --> Evidence{Any chunk meets<br/>similarity threshold?}
+    Evidence -- No --> Refuse[Return fixed insufficient-evidence answer<br/>without calling chat model]
+    Evidence -- Yes --> Filter[Keep only chunks meeting threshold]
+    Filter --> Prompt[Build context and question prompt]
+    Prompt --> Generate[LLMProvider.chat]
+    Generate --> Cite[Create citations from the same filtered chunks]
+    Cite --> Response[QueryResponse: answer, grounded=true, citations]
+    Refuse --> Ungrounded[QueryResponse: grounded=false, no citations]
+    Answer -. one outcome log .-> Log[JSON payload via Python logging]
 ```
 
 ### Ingestion flow
 
-Both entry points share the same chunk/embed/store core in `ingestion.py`.
+The CLI and upload entry points perform the same high-level operations, but currently duplicate
+the chunk/embed orchestration. Only `_store_chunks()` is shared; this is tracked in
+[`refactor-plan.md`](refactor-plan.md).
 
 ```mermaid
-flowchart LR
-    Cli[CLI: Markdown or TXT directory] --> Load[Read and hash content]
-    Upload[Upload API] --> MinIO[(MinIO)]
-    MinIO --> Trigger[POST /documents/id/ingest]
-    Trigger --> Decode[Fetch and decode UTF-8]
-    Load --> Chunk[chunking.chunk_text]
-    Decode --> Chunk
-    Chunk --> Batch[providers.embed_batch]
-    Batch --> Store[(Document and Chunk rows in PostgreSQL)]
-    Store --> Status[Ingested status and chunk count]
+flowchart TD
+    subgraph CLI[CLI path]
+        Command[cli ingest directory] --> Directory[ingestion.ingest_directory]
+        Directory --> File[ingestion.ingest_file per file]
+        File --> FileGuard{Supported extension<br/>and within size limit?}
+        FileGuard -- No --> Skip[Log and return skipped]
+        FileGuard -- Yes --> Read[Read UTF-8 and hash content]
+        Read --> Changed{Same object key<br/>and content hash?}
+        Changed -- Yes --> Unchanged[Return unchanged]
+        Changed -- No --> Replace[Delete prior Document if present]
+        Replace --> CliChunk[chunk_text]
+        CliChunk --> CliEmbed[LLMProvider.embed_batch]
+        CliEmbed --> CliStore[Create Document and call _store_chunks]
+        CliStore --> CliCommit[Commit ingested Document and Chunks]
+    end
+
+    subgraph Upload[Upload/API path]
+        UploadRequest[POST /documents/upload] --> UploadGuard[Validate extension, body size,<br/>and duplicate content hash]
+        UploadGuard --> Raw[(Store raw bytes in MinIO)]
+        Raw --> Uploaded[(Create Document status=uploaded)]
+        Uploaded --> Trigger[POST /documents/id/ingest]
+        Trigger --> Fetch[Fetch bytes from MinIO and decode UTF-8]
+        Fetch --> IngestUpload[ingestion.ingest_uploaded_document]
+        IngestUpload --> Ingesting[Commit status=ingesting]
+        Ingesting --> UploadChunk[Delete prior chunks, then chunk_text]
+        UploadChunk --> UploadEmbed[LLMProvider.embed_batch]
+        UploadEmbed --> UploadStore[Call _store_chunks]
+        UploadStore --> UploadCommit[Commit status=ingested and Chunks]
+        IngestUpload -. exception .-> Failed[Rollback, then commit status=failed]
+    end
+
+    CliCommit --> Database[(PostgreSQL + pgvector)]
+    UploadCommit --> Database
 ```
 
 ## Major components
@@ -54,7 +87,7 @@ flowchart LR
 | `db.py` | Engine/session management, `init_db()`, `check_db_reachable()`, `get_db()` FastAPI dependency |
 | `models.py` | `Document` (object_key-unique, status lifecycle), `Chunk` ORM models (pgvector `Vector(384)` column) |
 | `chunking.py` | Paragraph-aware text splitter |
-| `ingestion.py` | Shared chunk/embed/store core; `ingest_file`/`ingest_directory` (CLI) and `ingest_uploaded_document` (Phase 2 API) |
+| `ingestion.py` | CLI and upload ingestion orchestration; both call `_store_chunks()`, but currently duplicate chunk/embed steps |
 | `retrieval.py` | Cosine-similarity top-k retrieval + evidence-sufficiency threshold |
 | `answering.py` | Builds the grounded prompt, calls the LLM, or returns "insufficient evidence" without calling it; structured request logging |
 | `api/routes/query.py` | `POST /query` |
@@ -103,6 +136,13 @@ See [`adr/`](adr/):
 - Document-borne prompt injection (a poisoned indexed document, as opposed to an adversarial
   question) is not yet covered by a dedicated eval case (ADR-0008's known gap).
 - No cloud deployment yet — local-first by explicit decision, not oversight (ADR-0010).
+- `Settings.embedding_dimensions` is descriptive only today; the database column remains fixed at
+  `Vector(384)` in `models.py`. A model/dimension change therefore requires a schema migration and
+  full re-ingestion.
+- Chat and embeddings share one `LLMProvider` client, base URL, and API key. The current boundary
+  cannot yet route answer generation to Gemini while keeping embeddings on local Ollama.
+- Query logging emits one JSON outcome payload but has no request ID or per-step events. The
+  target request-correlated logging shape is Stage 2 work, not current behavior.
 - Local agent work targets an 8 GB Windows 11 machine with WSL2 limited to 3 GB. Backend checks
   run sequentially, and the frontend is not started or built locally.
 - Local development and CI pin the frozen community image
@@ -110,12 +150,12 @@ See [`adr/`](adr/):
   are no longer publicly pullable. It preserves the current S3-compatible MinIO boundary but is
   a development/test dependency, not a production hosting recommendation.
 
-## Potential future evolution
+## Roadmap and current learning stages
 
-Everything below is roadmap, not current architecture — see also `product.md`'s non-goals and
-[`docs/diagrams/roadmap.excalidraw`](diagrams/roadmap.excalidraw) for the visual version. Phased
-by business question, not by version number — a phase starts when its question becomes worth
-answering, not on a schedule.
+Everything below is roadmap, not current architecture. The active learning plan in `AGENTS.md`
+uses **Stage** while this document keeps the older architecture **Phase** names. When they
+conflict, `AGENTS.md` wins. The Excalidraw roadmap is a historical artifact and may be stale; the
+mapping below is authoritative.
 
 ### Phase 1 — Grounded RAG Backend v0.1 (done)
 
@@ -128,18 +168,27 @@ evaluation baseline, CI/security baseline.
 *Can a non-technical user upload documents, manage them, trigger ingestion, and ask questions
 through a product UI?* Next.js UI, MinIO storage, document management API — this change.
 
-### Phase 3 — Multi-format / Multi-source Knowledge
+### Stages 0–2 — Stabilize, understand, and measure (no architecture phase)
 
-*Can the product ingest the real formats and sources where enterprise knowledge actually lives?*
-PDF/DOCX/PPTX parsing, document metadata, a parser registry. Local file formats before remote
-connectors (SharePoint/Confluence/Drive) — those need a real requirement to justify them.
+Stage 0 stabilized local checks and CI. Stage 1 documents the code as it exists and proposes
+behavior-preserving refactors. Stage 2 changes answer generation to Gemini by configuration,
+extends the existing Python logging, and establishes a reproducible evaluation baseline with
+retrieval metrics. These stages were added after the original Phase 1–10 roadmap.
 
-### Phase 4 — Advanced Retrieval and Reranking
+### Phase 3 / Stage 3 — PDF ingestion
+
+*Can the product ingest and cite the selected public PDF corpus on the constrained development
+machine?* Docling parses PDF to cached Markdown in a separate step; PDF chunks retain document,
+section, and page metadata and exclude References. DOCX, PPTX, remote connectors, and a generic
+parser registry are not part of this stage.
+
+### Phase 4 / Stages 4–6 — Embedding, hybrid retrieval, and reranking
 
 *When the corpus grows and terminology becomes ambiguous, can the system still retrieve the best
-evidence?* Hybrid retrieval (vector + BM25/keyword), fusion, reranking, metadata filtering —
-gated on Phase 2/3 producing a corpus large enough to show a *measured* retrieval gap first
-(ADR-0004's reasoning still applies: don't optimize blind).
+evidence?* Stage 4 moves to local `nomic-embed-text` embeddings with a configurable 768-dimension
+schema. Stage 5 adds PostgreSQL English full-text search and fuses keyword/vector ranks with RRF,
+only after a larger corpus demonstrates a measured gap. Stage 6 adds a small CPU cross-encoder
+reranker and compares Gemini generation with an optional roughly 1B-parameter Ollama model.
 
 ### Phase 5 — Guardrails, Evaluation, and Observability Hardening
 
@@ -153,26 +202,33 @@ release gate.
 *Can the product answer questions when information is embedded in scanned documents, tables,
 diagrams, or images?* OCR, layout-aware parsing, table extraction, multimodal retrieval.
 
-### Phase 7 — Adaptive / Agentic RAG
+### Phase 7 / Later items 7, 10, and 11 — Advanced RAG and agents
 
-*Do different questions require different retrieval paths, retries, tools, or verification
-steps?* Query routing/rewriting, retry, self-check, tool use. LangChain/LangGraph evaluated here
-only if orchestration complexity actually justifies them — not by default.
+*Do measured failures justify more retrieval paths or tool use?* Item 7 evaluates query rewriting,
+multi-query, and HyDE in plain Python. Item 10 adds routing, tool calling, and text-to-SQL in plain
+Python. Item 11 reimplements only the agent portion with LangGraph on a separate branch and
+compares it with the plain version. Each technique is retained only when evaluation improves.
 
-### Phase 8 — Personalized Long-Term Memory
+### Phase 8 / Later item 8 — Multi-turn questions
 
-*Does the product need to remember user-specific or task-specific information across sessions?*
-Session/durable memory, retrieval, write/update policy, privacy/retention rules.
+*Can a follow-up question be rewritten into a standalone retrieval query?* Store conversation
+history and resolve follow-up context before retrieval. Durable personalized memory is not in the
+approved scope.
 
-### Phase 9 — Multi-Agent / Integration Platform
+### Later item 9 — RBAC (not mapped to an existing phase)
 
-*Do independent specialized capabilities need to collaborate?* MCP server exposure, A2A
-readiness for another portfolio project to query this one via an explicit API contract — never
-direct code/database coupling. Optional, not a maturity requirement.
+Role-based document access remains a current product non-goal. If approved later, filtering must
+happen inside PostgreSQL retrieval and tests must prove a user cannot retrieve unauthorized
+chunks; `product.md` and a new ADR must change first.
 
-### Phase 10 — Cloud Product Release
+### Phase 9 / Later item 12 — Retrieval interoperability
 
-*Can the completed local product run on cloud with controlled cost, reliable deployment, and
-clear teardown?* ADR-0009's VM + Docker Compose recommendation (or whatever's approved at the
-time), GitHub Actions deployment, smoke test, cost guardrail, release tag. Deferred by ADR-0010
-until the product is a real release candidate, not a fixed date.
+*Can an external agent call this system's retrieval through a stable boundary?* Expose retrieval
+as an MCP server. Multi-agent collaboration and A2A are not part of the approved item.
+
+### Phase 10 / Later item 13 — Container delivery and cloud release
+
+*Can the completed local product be packaged and released with controlled cost?* On merge to
+`main`, CI builds and pushes the Docker image to GitHub Container Registry. Real cloud deployment
+follows ADR-0009 and ADR-0010 only after an explicit decision and cost estimate; no cloud action
+is implied by this roadmap.
