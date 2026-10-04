@@ -4,8 +4,18 @@ import pytest
 from sqlalchemy.orm import Session
 from tests.fakes import FakeLLMProvider
 
-from enterprise_rag_knowledge_assistant.ingestion import ingest_directory, ingest_file
-from enterprise_rag_knowledge_assistant.models import Chunk, Document
+from enterprise_rag_knowledge_assistant.config import get_settings
+from enterprise_rag_knowledge_assistant.ingestion import (
+    ingest_directory,
+    ingest_file,
+    ingest_uploaded_document,
+)
+from enterprise_rag_knowledge_assistant.models import (
+    SOURCE_UPLOAD,
+    STATUS_UPLOADED,
+    Chunk,
+    Document,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -86,3 +96,55 @@ def test_changed_document_is_reingested(
 
     assert second.status == "ingested"
     assert db_session.query(Document).count() == 1  # replaced, not duplicated
+
+
+def test_cli_and_upload_paths_produce_the_same_chunks_for_the_same_text(
+    db_session: Session, fake_provider: FakeLLMProvider, tmp_path
+) -> None:
+    """Characterizes the invariant R2 (docs/refactor-plan.md) relies on: both ingest entry
+    points call chunk_text/embed_batch the same way, so consolidating their chunk+embed
+    preparation into one helper must not change the chunks or embeddings either path produces."""
+    content = (
+        "# Backup policy\n\n"
+        "Database backups run nightly and are retained for thirty days.\n\n"
+        "Backup restore access is limited to the platform team."
+    )
+    settings = get_settings()
+
+    cli_path = tmp_path / "policy.md"
+    cli_path.write_text(content)
+    cli_result = ingest_file(cli_path, db_session, fake_provider, settings)
+    assert cli_result.status == "ingested"
+    cli_document = db_session.query(Document).filter_by(object_key="policy.md").one()
+
+    uploaded_document = Document(
+        object_key="uploads/policy-upload.md",
+        original_filename="policy.md",
+        content_hash="irrelevant-for-this-test",
+        content_type="text/markdown",
+        size_bytes=len(content.encode("utf-8")),
+        status=STATUS_UPLOADED,
+        source=SOURCE_UPLOAD,
+    )
+    db_session.add(uploaded_document)
+    db_session.flush()
+    upload_result = ingest_uploaded_document(
+        uploaded_document, content, db_session, fake_provider, settings
+    )
+    assert upload_result.status == "ingested"
+
+    cli_chunks = (
+        db_session.query(Chunk)
+        .filter_by(document_id=cli_document.id)
+        .order_by(Chunk.chunk_index)
+        .all()
+    )
+    upload_chunks = (
+        db_session.query(Chunk)
+        .filter_by(document_id=uploaded_document.id)
+        .order_by(Chunk.chunk_index)
+        .all()
+    )
+
+    assert [c.content for c in cli_chunks] == [c.content for c in upload_chunks]
+    assert [c.embedding for c in cli_chunks] == [c.embedding for c in upload_chunks]
