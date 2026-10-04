@@ -301,5 +301,5 @@ trước khi báo là xong:
   liệu trong docs/ bằng tiếng Anh, theo đúng ngôn ngữ hiện có của repo.
 
 ## Trạng thái hiện tại
-- Giai đoạn đang làm: 0
-- Đã hoàn thành: chưa có
+- Giai đoạn đang làm: 1
+- Đã hoàn thành: Giai đoạn 0
