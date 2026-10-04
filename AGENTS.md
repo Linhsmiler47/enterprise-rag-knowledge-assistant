@@ -255,7 +255,8 @@ cho mỗi câu hỏi, cần ước lượng quota Gemini trước khi làm.
 - Cập nhật docs/observability.md khi logging thay đổi.
 
 ## CI
-- Workflow GitHub Actions chạy trên mỗi push và pull request. Job
+- Workflow GitHub Actions chạy khi mở/cập nhật pull request và khi push
+  lên nhánh main. Job
   backend chỉ gọi scripts/check.sh để CI và máy local chạy cùng một bộ
   lệnh backend (Ruff, mypy, pytest).
 - Giữ nguyên job frontend tách riêng hiện có để lint/build frontend
