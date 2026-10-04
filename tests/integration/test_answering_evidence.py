@@ -1,6 +1,8 @@
 """Characterization tests for the threshold/filter behavior in answer_question() and
-has_sufficient_evidence(), pinned before R3 (docs/refactor-plan.md) consolidates the two-pass
-threshold check into one helper. These tests must keep passing unchanged after that refactor."""
+qualifying_chunks(). Originally pinned has_sufficient_evidence() before R3
+(docs/refactor-plan.md) replaced the boolean check plus second filter pass with this single
+ordered helper; updated in the same commit as that refactor to track the new name/shape while
+keeping the exact same behavioral assertions (inclusive threshold, empty/below-threshold cases)."""
 
 import pytest
 from sqlalchemy.orm import Session
@@ -9,7 +11,7 @@ from tests.fakes import FakeLLMProvider
 from enterprise_rag_knowledge_assistant.answering import answer_question
 from enterprise_rag_knowledge_assistant.config import get_settings
 from enterprise_rag_knowledge_assistant.ingestion import ingest_file
-from enterprise_rag_knowledge_assistant.retrieval import has_sufficient_evidence, retrieve
+from enterprise_rag_knowledge_assistant.retrieval import qualifying_chunks, retrieve
 
 pytestmark = pytest.mark.integration
 
@@ -20,26 +22,26 @@ def _ingest(db_session: Session, fake_provider: FakeLLMProvider, tmp_path, name:
     ingest_file(path, db_session, fake_provider, get_settings())
 
 
-def test_has_sufficient_evidence_is_inclusive_at_threshold() -> None:
-    """Pins the `>=` (not `>`) comparison in has_sufficient_evidence()."""
+def test_qualifying_chunks_is_inclusive_at_threshold() -> None:
+    """Pins the `>=` (not `>`) comparison in qualifying_chunks()."""
     from enterprise_rag_knowledge_assistant.retrieval import RetrievedChunk
 
     settings = get_settings().model_copy(update={"retrieval_similarity_threshold": 0.5})
     chunk_at_threshold = RetrievedChunk(
         document_filename="d.md", chunk_id=1, chunk_index=0, content="x", similarity=0.5
     )
-    assert has_sufficient_evidence([chunk_at_threshold], settings) is True
+    assert qualifying_chunks([chunk_at_threshold], settings) == [chunk_at_threshold]
 
 
-def test_has_sufficient_evidence_false_for_empty_or_below_threshold() -> None:
+def test_qualifying_chunks_empty_for_empty_or_below_threshold() -> None:
     from enterprise_rag_knowledge_assistant.retrieval import RetrievedChunk
 
     settings = get_settings().model_copy(update={"retrieval_similarity_threshold": 0.5})
     below = RetrievedChunk(
         document_filename="d.md", chunk_id=1, chunk_index=0, content="x", similarity=0.49
     )
-    assert has_sufficient_evidence([], settings) is False
-    assert has_sufficient_evidence([below], settings) is False
+    assert qualifying_chunks([], settings) == []
+    assert qualifying_chunks([below], settings) == []
 
 
 def test_answer_question_includes_chunk_exactly_at_threshold(

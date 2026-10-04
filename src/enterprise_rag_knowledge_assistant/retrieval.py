@@ -51,7 +51,10 @@ def retrieve(
     return results
 
 
-def has_sufficient_evidence(
+def qualifying_chunks(
     chunks: list[RetrievedChunk], settings: Settings
-) -> bool:
-    return any(c.similarity >= settings.retrieval_similarity_threshold for c in chunks)
+) -> list[RetrievedChunk]:
+    """Chunks that clear the similarity threshold, in retrieval order. An empty result means
+    insufficient evidence -- the single source of truth for both that check and context/citation
+    selection (see docs/refactor-plan.md R3)."""
+    return [c for c in chunks if c.similarity >= settings.retrieval_similarity_threshold]

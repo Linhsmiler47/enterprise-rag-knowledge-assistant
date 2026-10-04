@@ -18,7 +18,7 @@ from enterprise_rag_knowledge_assistant.config import Settings
 from enterprise_rag_knowledge_assistant.providers import LLMProvider
 from enterprise_rag_knowledge_assistant.retrieval import (
     RetrievedChunk,
-    has_sufficient_evidence,
+    qualifying_chunks,
     retrieve,
 )
 
@@ -115,7 +115,8 @@ def answer_question(
         raise
     retrieval_seconds = time.monotonic() - retrieval_start
 
-    evidence_sufficient = bool(chunks) and has_sufficient_evidence(chunks, settings)
+    relevant = qualifying_chunks(chunks, settings)
+    evidence_sufficient = bool(relevant)
 
     if not evidence_sufficient:
         _log_outcome(
@@ -134,9 +135,6 @@ def answer_question(
             citations=[],
             grounded=False,
         )
-
-    # Only cite chunks that clear the threshold, even if a few extra were fetched for context.
-    relevant = [c for c in chunks if c.similarity >= settings.retrieval_similarity_threshold]
 
     user_prompt = _build_user_prompt(question, relevant)
 
