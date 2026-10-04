@@ -99,7 +99,7 @@ flowchart TD
 | `api/routes/health.py` | `/live`, `/ready`, `/health` |
 | `cli.py` | `init-db`, `ingest` — wired to `make migrate` / `make ingest` |
 | `scripts/evaluate.py` | Evaluation harness — see `evaluation.md` |
-| `scripts/check.sh` | One-command backend verification: Ruff, mypy, then the complete pytest suite |
+| `scripts/check.sh` | One-command backend verification: Ruff, mypy, then pytest; always reports skip count/reasons and fails on any skip when `REQUIRE_INTEGRATION=1` (CI mode) |
 | `frontend/` | Next.js product UI (Upload/Documents/Ask) — see `docs/adr/0011-phase2-stack.md` |
 
 ## Diagrams

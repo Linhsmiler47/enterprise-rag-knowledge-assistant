@@ -72,7 +72,13 @@ operator/CI/eval use — the UI doesn't replace it, it adds a path that doesn't 
 
 ```bash
 ./scripts/check.sh
+
+# Require every test to run; this is the mode used by the backend CI job.
+REQUIRE_INTEGRATION=1 ./scripts/check.sh
 ```
+
+Normal mode reports the number of skipped tests and their reasons at the end. Strict mode exits
+non-zero if any test is skipped, so PostgreSQL and MinIO must both be reachable.
 
 ## Docker
 

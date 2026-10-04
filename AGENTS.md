@@ -268,6 +268,8 @@ cho mỗi câu hỏi, cần ước lượng quota Gemini trước khi làm.
 - Job Docker tách riêng chỉ build backend image để kiểm tra Dockerfile;
   không push image.
 - Postgres (có pgvector) và MinIO chạy dạng service container trong CI.
+- Job backend đặt REQUIRE_INTEGRATION=1 để bất kỳ test bị skip nào cũng
+  làm CI fail.
 - Test không được gọi API bên ngoài hay Ollama. LLM và embedding dùng
   provider giả trong test.
 - Evaluation không chạy trong CI. Chạy trên máy local và commit kết quả

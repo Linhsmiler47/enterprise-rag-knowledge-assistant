@@ -138,9 +138,6 @@ ADR-0004. Those changes require new ADRs; the old ADR text must remain as histor
   recovery and no test for the manual retry path.
 - An empty string returned by the chat provider is still reported as `grounded=true` with
   citations. Provider exceptions are logged, but malformed successful responses are not tested.
-- Integration fixtures skip when PostgreSQL or MinIO is unavailable. Therefore
-  `scripts/check.sh` can return success without running the full integration suite outside CI;
-  the command does not distinguish an intentional unit-only run from a missing required service.
 - Test uploads leave most generated objects in the MinIO bucket. Database rows are truncated, but
   object storage has no matching per-test cleanup.
 - Error response non-leakage is listed as a gap in ADR-0008 and still lacks an API test.
@@ -188,8 +185,9 @@ ADR-0004. Those changes require new ADRs; the old ADR text must remain as histor
    429 retry behavior when Stage 2 adds retry.
 3. MinIO/PostgreSQL partial failures and cleanup for upload/delete.
 4. Concurrent duplicate upload and concurrent/repeated ingestion state transitions.
-5. A check that required integration services cause the full check to fail rather than silently
-   skip, while a separately named unit-only command remains available.
+5. ~~A check that required integration services cause the full check to fail rather than silently
+   skip.~~ Resolved after Stage 1 review: normal mode reports skip count/reasons, while
+   `REQUIRE_INTEGRATION=1` fails on any skip and is enabled in CI.
 6. Evaluation harness unit tests for case selection, retrieval-only mode, hit rate@k, MRR, and
    non-zero exit on failed expectations (Stage 2).
 7. Structured logging tests for request ID propagation, one event per required step, summary

@@ -63,6 +63,8 @@ jobs:
 
       - name: Backend checks
         run: ./scripts/check.sh
+        env:
+          REQUIRE_INTEGRATION: "1"
 
   docker:
     runs-on: ubuntu-latest
