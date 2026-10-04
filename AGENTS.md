@@ -155,6 +155,9 @@ link nào thì báo lại, không tự đoán nội dung.
   đồ Mermaid cho luồng hiện tại.
 
 ### Giai đoạn 2 - Gemini, logging và baseline evaluation
+- Bước đầu tiên: tách cấu hình chat và embedding thành hai bộ độc lập;
+  mỗi bộ có base_url, api_key và model riêng. Chat dùng Gemini, còn
+  embedding tiếp tục dùng Ollama.
 - Thêm Gemini làm provider LLM mặc định, chỉ bằng cấu hình, dùng lại
   lớp provider tương thích OpenAI:
   base_url = https://generativelanguage.googleapis.com/v1beta/openai/
