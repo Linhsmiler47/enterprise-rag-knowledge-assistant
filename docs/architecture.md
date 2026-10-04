@@ -52,7 +52,9 @@ flowchart TD
         Changed -- Yes --> Unchanged[Return unchanged]
         Changed -- No --> Replace[Delete prior Document if present]
         Replace --> CliChunk[chunk_text]
-        CliChunk --> CliEmbed[LLMProvider.embed_batch]
+        CliChunk --> CliHasChunks{Any chunks?}
+        CliHasChunks -- No --> Skip
+        CliHasChunks -- Yes --> CliEmbed[LLMProvider.embed_batch]
         CliEmbed --> CliStore[Create Document and call _store_chunks]
         CliStore --> CliCommit[Commit ingested Document and Chunks]
     end
@@ -66,7 +68,9 @@ flowchart TD
         Fetch --> IngestUpload[ingestion.ingest_uploaded_document]
         IngestUpload --> Ingesting[Commit status=ingesting]
         Ingesting --> UploadChunk[Delete prior chunks, then chunk_text]
-        UploadChunk --> UploadEmbed[LLMProvider.embed_batch]
+        UploadChunk --> UploadHasChunks{Any chunks?}
+        UploadHasChunks -- No --> NoContentFailed[Commit status=failed<br/>with no-content error]
+        UploadHasChunks -- Yes --> UploadEmbed[LLMProvider.embed_batch]
         UploadEmbed --> UploadStore[Call _store_chunks]
         UploadStore --> UploadCommit[Commit status=ingested and Chunks]
         IngestUpload -. exception .-> Failed[Rollback, then commit status=failed]

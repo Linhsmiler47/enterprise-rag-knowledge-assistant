@@ -1,9 +1,9 @@
-# Phase 1 Code Walkthrough and Refactor Plan
+# Stage 1 Code Walkthrough and Refactor Plan
 
 ## Purpose and scope
 
 This document records how the backend works on 2026-10-04, where documentation and code differ,
-and a sequence of small behavior-preserving refactors. Phase 1 changes documentation only. Every
+and a sequence of small behavior-preserving refactors. Stage 1 changes documentation only. Every
 code step below requires separate approval and must be implemented and committed independently.
 
 The review covered `docs/architecture.md`, `docs/product.md`, `docs/evaluation.md`,
@@ -94,7 +94,7 @@ chunk/embed orchestration is duplicated.
 | Priority | Documented claim or decision | Actual code/repository state | Disposition |
 |---|---|---|---|
 | Blocker before Stage 2 | External APIs may receive only the three designated public PDFs, but Stage 2 makes Gemini the default and runs the current evaluation before Stage 3 adds those PDFs. | The current evaluation corpus is `data/sample/*.md`; Gemini generation would receive excerpts from those Markdown files. | Owner decision required before Stage 2: explicitly allow this public Markdown corpus, postpone live Gemini evaluation until the PDF corpus exists, or keep that evaluation local. Do not infer permission. |
-| High | Later item 13 defers image publishing until the core stages finish. | `.github/workflows/release.yml` already pushes images to GHCR for `v*.*.*` tags and creates a release. | Decide whether this legacy workflow should be disabled until item 13. It was not changed in Phase 1. |
+| High | Later item 13 defers image publishing until the core stages finish. | `.github/workflows/release.yml` already pushes images to GHCR for `v*.*.*` tags and creates a release. | Decide whether this legacy workflow should be disabled until item 13. It was not changed in Stage 1. |
 | High | CI runs on every push and pull request. | `.github/workflows/ci.yml` runs on pull requests and pushes to `main`, not pushes to every branch. | Clarify whether “every push” means every branch; then change the trigger in a dedicated CI commit if required. |
 | High | `LLMProvider` is described as switchable by configuration alone. | One client/base URL/API key serves both chat and embeddings; Gemini chat plus Ollama embeddings cannot be expressed. `Vector(384)` is also fixed in the ORM. | ADR-0002's default is scheduled to be superseded in Stage 2. Treat provider/config separation as Stage 2 design work, not a hidden refactor. |
 | High | `product.md` says ingestion stores a chunk “per section.” | `chunk_text()` has no Markdown section parser or section metadata; it uses blank-line paragraphs and character limits. | Correct the requirement wording or add real section behavior in its scheduled stage. Do not claim section-aware ingestion today. |
@@ -102,7 +102,7 @@ chunk/embed orchestration is duplicated.
 | Medium | `evaluation.md` presents the harness as a useful gate. | `run_eval()` records `CHECK` cases but always exits with status 0. | Add a non-zero failure exit as an explicit Stage 2 behavior change, alongside subset and retrieval-only modes. |
 | Medium | `observability.md` discusses a future OpenTelemetry/metrics platform. | `AGENTS.md` now explicitly prohibits OpenTelemetry, Jaeger, Prometheus, Grafana, Elasticsearch, and new monitoring services. | Update observability roadmap wording when that document is next in scope; extend standard Python logging only. |
 | Medium | Architecture previously said both ingest paths shared a chunk/embed/store core. | Only `_store_chunks()` is shared; both functions call `chunk_text()` and `embed_batch()` independently. | Corrected in `architecture.md`; consolidation is proposed below. |
-| Low | README says CI has two jobs named `ci` and `frontend`. | CI now has `backend`, `docker`, and `frontend` jobs. | Update README in the next documentation scope; Phase 1 did not authorize editing it. |
+| Low | README says CI has two jobs named `ci` and `frontend`. | CI now has `backend`, `docker`, and `frontend` jobs. | Update README in the next documentation scope; Stage 1 did not authorize editing it. |
 | Low | Configuration comments link chunking/retrieval to ADR-0002/0003, and `.env.example` links providers to ADR-0001. | The governing records are ADR-0003 for chunking, ADR-0004 for retrieval, and ADR-0002 for providers. | Correct comments in a documentation-only cleanup commit after approval. |
 
 The planned roadmap supersessions are not accidental mismatches: Stage 2 will supersede the
@@ -133,8 +133,9 @@ ADR-0004. Those changes require new ADRs; the old ADR text must remain as histor
   local single-user workload, but it is an important concurrency constraint.
 - The upload route reads the full body before enforcing the size limit. This is already disclosed
   and acceptable locally, but it must be revisited before internet-facing use.
-- `status=ingesting` is committed before embedding. A process crash can leave that status forever;
-  no recovery path or stale-job test exists.
+- `status=ingesting` is committed before embedding. A process crash can leave that status until a
+  user manually calls the ingest endpoint again; there is no automatic stale-job detection or
+  recovery and no test for the manual retry path.
 - An empty string returned by the chat provider is still reported as `grounded=true` with
   citations. Provider exceptions are logged, but malformed successful responses are not tested.
 - Integration fixtures skip when PostgreSQL or MinIO is unavailable. Therefore
@@ -223,7 +224,7 @@ Proposed handling, in its own approved commit:
    FastAPI/Starlette/httpx set temporarily and record the pin reason. Do not blindly upgrade or
    silence warnings.
 
-This is intentionally not implemented in Phase 1.
+This is intentionally not implemented in Stage 1.
 
 ## Proposed behavior-preserving refactor sequence
 
