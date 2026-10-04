@@ -14,7 +14,7 @@ Product UI (Phase 2, optional): `cd frontend && npm install && npm run dev` — 
 
 ```bash
 git tag v0.1.0 && git push --tags   # triggers release.yml -> builds + pushes image, immutable digest
-# deploy.yml: main -> dev automatically; production requires the tag + GitHub Environment approval
+# Phase 10 only, after explicit approval: run deploy.yml manually and select the environment
 ```
 
 ## Smoke test

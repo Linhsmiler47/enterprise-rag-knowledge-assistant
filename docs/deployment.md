@@ -102,7 +102,7 @@ Removes the entire resource group and everything in it. See the workspace root
 ## What has and hasn't been done (honesty, not aspiration)
 
 - ✅ Terraform written and locally validated (`terraform validate` passes)
-- ✅ `deploy.yml` written, targeting OIDC auth
+- ✅ `deploy.yml` written with a manual-only trigger, targeting OIDC auth
 - ❌ **Not deployed.** No `terraform apply` has been run. No Azure resources exist. `az login`
   requires interactive authentication this environment cannot perform — see "Authentication"
   above and the final batch report's "remaining manual actions" section.
