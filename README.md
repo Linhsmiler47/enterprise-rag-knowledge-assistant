@@ -4,9 +4,8 @@
 deployed) *(see `docs/product.md` for the maturity progression this follows)*
 
 Extracted to a standalone repository and validated against real GitHub-hosted runners on
-2026-08-16: `uv sync`, `make lint`, `make test` (22/22), `make ci`, `make build`,
-`terraform validate`, and `make smoke` all pass outside the original monorepo; `ci.yml` passed on
-its first real run on `push`. Azure deployment remains prepared, not executed — see
+2026-08-16. The current backend check is `./scripts/check.sh` (Ruff, mypy, and all pytest tests);
+the frontend remains a separate CI job. Azure deployment remains prepared, not executed — see
 [ADR-0009](docs/adr/0009-hosting-strategy-for-personal-demo.md) and
 [`docs/deployment.md`](docs/deployment.md).
 
@@ -19,26 +18,42 @@ user stories.
 
 ## Architecture
 
-See [`docs/architecture.md`](docs/architecture.md). Currently: a single FastAPI service, no
-external dependencies — see [ADR-0001](docs/adr/0001-initial-architecture.md). Diagrams (current
-vs. future, clearly labeled) are in [`docs/diagrams/`](docs/diagrams/).
+See [`docs/architecture.md`](docs/architecture.md). Currently: a FastAPI service backed by
+PostgreSQL/pgvector and MinIO, plus an OpenAI-compatible LLM/embedding endpoint. The authoritative
+query and ingestion diagrams are the Mermaid diagrams in `docs/architecture.md`.
 
 ## Quick start
 
 ```bash
 ./scripts/bootstrap.sh
-make dev             # start app + Postgres/pgvector + MinIO
-make migrate         # create schema + pgvector extension
+
+# Start app + PostgreSQL/pgvector + MinIO + the optional local Ollama slice.
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml \
+  -f deploy/local/docker-compose.ollama.yml up -d --build
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml \
+  -f deploy/local/docker-compose.ollama.yml exec ollama ollama pull qwen2.5:0.5b
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml \
+  -f deploy/local/docker-compose.ollama.yml exec ollama ollama pull all-minilm
+
+make migrate          # create schema + pgvector extension
 make ingest           # index data/sample/*.md
 curl -s localhost:8000/query -X POST -H 'Content-Type: application/json' \
   -d '{"question": "How often are database backups taken?"}'
 ```
 
 Requires an OpenAI-compatible LLM/embedding endpoint reachable at `LLM_BASE_URL` (defaults to a
-local Ollama at `localhost:11434`) — see [`docs/local-development.md`](docs/local-development.md)
-for the Ollama setup step if you don't already have one running.
+local Ollama at `localhost:11434`). Use local Ollama for the current corpus. Only the designated
+public sample PDFs introduced in Stage 3 may be sent to an external API; no other repository or
+user data may leave the machine. See [`docs/local-development.md`](docs/local-development.md).
 
 Full instructions: [`docs/local-development.md`](docs/local-development.md).
+
+On the target Windows 11/WSL2 machine, limit WSL2 to 3 GB in `%UserProfile%\.wslconfig` and do
+not run or build the frontend while running backend checks. The exact setup and restart commands
+are in [`docs/local-development.md`](docs/local-development.md).
 
 ## Product UI (Phase 2)
 
@@ -56,7 +71,7 @@ operator/CI/eval use — the UI doesn't replace it, it adds a path that doesn't 
 ## Testing
 
 ```bash
-make test
+./scripts/check.sh
 ```
 
 ## Docker
@@ -69,7 +84,7 @@ docker run -p 8000:8000 enterprise-rag-knowledge-assistant:latest
 ## CI
 
 `.github/workflows/ci.yml` runs two independent jobs on every pull request and push to `main`:
-`ci` (`make ci` — lint + test + build, with Postgres + MinIO service containers) and `frontend`
+`ci` (`./scripts/check.sh` — Ruff + mypy + pytest, with Postgres + MinIO service containers) and `frontend`
 (`npm ci && npm run lint && npm run build`). `.github/workflows/security.yml` runs dependency
 audit, secret scanning, and a filesystem vulnerability scan.
 

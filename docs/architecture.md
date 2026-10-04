@@ -5,46 +5,42 @@
 A FastAPI backend (+ an optional Next.js product UI, Phase 2) backed by PostgreSQL/pgvector for
 metadata/chunks/embeddings and MinIO for raw uploaded files, answering questions grounded in a
 small internal knowledge base, using a local (or optionally external) LLM through a narrow
-provider boundary.
+provider boundary. External APIs may receive only the designated public sample PDFs; all other
+repository and user data stays local.
 
 ## Current architecture
 
-```
-Browser
-  │
-  ▼
-Next.js UI (frontend/, Phase 2 -- optional, the API works standalone via curl/CLI too)
-  │  HTTP (CORS-allowed)
-  ▼
-FastAPI (src/enterprise_rag_knowledge_assistant/)
-  │
-  ├── POST /query ──► retrieval.py ──► pgvector similarity search ──► answering.py ──► providers.py (LLM)
-  │                                                                                        │
-  ├── POST /documents/upload ──► storage.py (MinIO) + models.py (Document, status="uploaded")
-  ├── GET  /documents, /documents/{id} ──► list/detail
-  ├── POST /documents/{id}/ingest ──► storage.py: fetch ──► ingestion.py: chunk+embed+store       │
-  ├── DELETE /documents/{id} ──► storage.py: delete object + DB row (cascade chunks)              │
-  │                                                                                                 │
-  └── GET /live, /ready, /health ──► db.py (reachability + index content check)                    │
-                                                                                                     ▼
-                                                                              Ollama (local, default) or
-                                                                              OpenAI-compatible external API
+### Query flow
+
+```mermaid
+flowchart LR
+    Request[POST /query] --> Route[api/routes/query.py]
+    Route --> Answer[answering.answer_question]
+    Answer --> Retrieve[retrieval.retrieve]
+    Retrieve --> Embed[providers.embed question]
+    Embed --> Vector[(PostgreSQL / pgvector)]
+    Vector --> Evidence{Any similarity above threshold?}
+    Evidence -- No --> Refuse[Return insufficient evidence]
+    Evidence -- Yes --> Prompt[Build prompt from qualifying chunks]
+    Prompt --> Generate[providers.chat]
+    Generate --> Response[Return grounded answer and citations]
 ```
 
-Ingestion has two entry points sharing the same chunk/embed/store core (see `ingestion.py`):
+### Ingestion flow
 
-```
-CLI (operator-triggered):
-data/sample/*.md,*.txt (or any directory)
-  │
-  ▼
-ingestion.py: load ──► chunking.py: chunk ──► providers.py: embed ──► pgvector: store
-                                                                          (idempotent per file,
-                                                                           content-hash keyed)
+Both entry points share the same chunk/embed/store core in `ingestion.py`.
 
-Product UI (Phase 2, user-triggered, two explicit steps):
-Upload ──► storage.py: store in MinIO, Document(status="uploaded")
-Ingest ──► storage.py: fetch ──► same chunk/embed/store core ──► status="ingested"|"failed"
+```mermaid
+flowchart LR
+    Cli[CLI: Markdown or TXT directory] --> Load[Read and hash content]
+    Upload[Upload API] --> MinIO[(MinIO)]
+    MinIO --> Trigger[POST /documents/id/ingest]
+    Trigger --> Decode[Fetch and decode UTF-8]
+    Load --> Chunk[chunking.chunk_text]
+    Decode --> Chunk
+    Chunk --> Batch[providers.embed_batch]
+    Batch --> Store[(Document and Chunk rows in PostgreSQL)]
+    Store --> Status[Ingested status and chunk count]
 ```
 
 ## Major components
@@ -66,16 +62,15 @@ Ingest ──► storage.py: fetch ──► same chunk/embed/store core ──�
 | `api/routes/health.py` | `/live`, `/ready`, `/health` |
 | `cli.py` | `init-db`, `ingest` — wired to `make migrate` / `make ingest` |
 | `scripts/evaluate.py` | Evaluation harness — see `evaluation.md` |
+| `scripts/check.sh` | One-command backend verification: Ruff, mypy, then the complete pytest suite |
 | `frontend/` | Next.js product UI (Upload/Documents/Ask) — see `docs/adr/0011-phase2-stack.md` |
 
 ## Diagrams
 
-[`docs/diagrams/`](diagrams/) has visual versions of the architecture above, the `POST /query`/CLI
-ingestion flows, the Phase 2 upload/product-architecture flows, and a roadmap diagram that
-explicitly separates what's implemented (Phase 1–2, solid) from what isn't (Phase 3+, dashed).
-See [`docs/diagrams/README.md`](diagrams/README.md) for the current/future convention and the
-current source-only status (SVG export is a documented manual step — not automatable in the
-environment this change was produced in).
+The Mermaid query and ingestion diagrams above are the source of truth for current behavior.
+[`docs/diagrams/`](diagrams/) contains older Excalidraw views retained as historical visual
+artifacts; they may be stale and are not updated under the current roadmap. See
+[`docs/diagrams/README.md`](diagrams/README.md) for that convention.
 
 ## Major decisions
 
@@ -108,6 +103,8 @@ See [`adr/`](adr/):
 - Document-borne prompt injection (a poisoned indexed document, as opposed to an adversarial
   question) is not yet covered by a dedicated eval case (ADR-0008's known gap).
 - No cloud deployment yet — local-first by explicit decision, not oversight (ADR-0010).
+- Local agent work targets an 8 GB Windows 11 machine with WSL2 limited to 3 GB. Backend checks
+  run sequentially, and the frontend is not started or built locally.
 
 ## Potential future evolution
 

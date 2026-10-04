@@ -1,5 +1,9 @@
 # Architecture Diagrams
 
+The Mermaid query and ingestion diagrams in `docs/architecture.md` are the authoritative current
+flows. The `.excalidraw` files in this directory are retained as historical visual artifacts and
+may be stale. Do not update them as part of the current roadmap.
+
 ## Files
 
 | Diagram | Shows |
@@ -27,13 +31,9 @@ without the UI running) and the other shows the full product.
 
 ## Source vs. rendered
 
-`.excalidraw` files are the source of truth (hand-authored JSON scene files, editable in
-Excalidraw / the VS Code Excalidraw extension). `.svg` renders are generated from them — **not
-included in this change**, because no automated Excalidraw-to-SVG export path is available in the
-sandboxed environment this change was produced in (checked: no Excalidraw CLI, no headless
-renderer, no `inkscape`/`rsvg-convert`). Also **not independently visually verified** — the JSON
-was validated for schema/syntax correctness (round-tripped through a JSON parser) but not
-confirmed to render correctly by actually opening it in Excalidraw.
+`.excalidraw` files are hand-authored JSON scene files, editable in Excalidraw or the VS Code
+Excalidraw extension. They are no longer the source of truth. `.svg` renders are not included
+because no automated Excalidraw-to-SVG export path is configured.
 
 **To produce the `.svg` files** (manual, one-time per diagram, needed before docs links below will
 resolve to an image instead of just the source):
@@ -46,7 +46,5 @@ resolve to an image instead of just the source):
 
 ## Diagram drift control
 
-These diagrams describe the codebase **as of this change**. If retrieval, ingestion, or the
-observability approach changes materially, update the relevant `.excalidraw` source (and
-re-export the `.svg`) in the same change that alters the code — a diagram that silently goes stale
-is worse than no diagram, because it actively misinforms.
+Keep the Mermaid diagrams in `docs/architecture.md` synchronized with retrieval and ingestion
+changes. The `.excalidraw` files may remain unchanged and must not be treated as current evidence.

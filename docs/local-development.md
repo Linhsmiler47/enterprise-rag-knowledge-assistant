@@ -2,14 +2,55 @@
 
 ## Prerequisites
 
-- [uv](https://docs.astral.sh/uv/getting-started/installation/)
-- Docker (for the containerized workflow / `make build`)
-- Node.js 22+ (only if working on `frontend/`)
+- Windows 11 with WSL2
+- Docker Desktop with WSL integration enabled
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) inside WSL2
+- Node.js 22+ only when the repository owner chooses to run the frontend
+
+Verify the backend toolchain from WSL2 before starting:
+
+```bash
+uname -a                 # should include microsoft-standard-WSL2
+docker version           # both Client and Server sections must be present
+docker compose version
+python --version         # Python 3.12+
+uv --version
+```
+
+If `docker version` shows only the client or cannot reach `/var/run/docker.sock`, start Docker
+Desktop on Windows and enable WSL integration for this distribution. Ollama is optional as a host
+installation because the repository provides the `docker-compose.ollama.yml` slice below.
+
+## WSL2 memory limit
+
+On the target 8 GB machine, open `%UserProfile%\.wslconfig` from PowerShell:
+
+```powershell
+notepad $env:USERPROFILE\.wslconfig
+```
+
+Set the following values, save the file, then restart WSL2 and Docker Desktop:
+
+```ini
+[wsl2]
+memory=3GB
+swap=1GB
+```
+
+```powershell
+wsl --shutdown
+```
+
+After reopening WSL2, run `free -h` and confirm the memory limit is close to 3 GB. Do not run
+heavy tasks in parallel. The agent does not start or build the frontend locally; use FastAPI's
+`http://localhost:8000/docs` for local verification. The repository owner may run the frontend
+manually when inspecting the UI.
 
 ## Quick start (golden path)
 
 This is the full path from a fresh clone to a real, cited answer — every step is required, in
-order. It assumes an OpenAI-compatible LLM/embedding endpoint; the default is a local Ollama.
+order. It uses the local Ollama endpoint. Only the designated public sample PDFs introduced in
+Stage 3 may be sent to an external API; all other repository or user data must stay local.
 
 ```bash
 # 1. Clone and set up
@@ -17,17 +58,22 @@ git clone <this-repo>
 cd enterprise-rag-knowledge-assistant
 ./scripts/bootstrap.sh   # or: make setup
 
-# 2. Get an LLM/embedding provider running (skip if LLM_PROVIDER=openai with a real key in .env)
-#    Bring up the app + db + MinIO + a containerized Ollama, then pull the two models once:
+# 2. Bring up the app + db + MinIO + a containerized Ollama, then pull both models once:
 docker compose -f deploy/local/docker-compose.yml \
   -f deploy/local/docker-compose.override.yml \
   -f deploy/local/docker-compose.ollama.yml up -d
-docker exec local-ollama-1 ollama pull qwen2.5:0.5b
-docker exec local-ollama-1 ollama pull all-minilm
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml \
+  -f deploy/local/docker-compose.ollama.yml exec ollama ollama pull qwen2.5:0.5b
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml \
+  -f deploy/local/docker-compose.ollama.yml exec ollama ollama pull all-minilm
 curl http://localhost:11434/api/version   # sanity check: Ollama is reachable
 
-# 3. Start the app (if not already up from step 2)
-make dev   # now also starts MinIO -- see deploy/local/docker-compose.yml
+# 3. Confirm the four services are running
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml \
+  -f deploy/local/docker-compose.ollama.yml ps
 
 # 4. Create the schema (idempotent — safe to re-run)
 make migrate
@@ -60,11 +106,13 @@ policy?"`) and confirm `grounded: false` with an empty `citations` list and the 
 evidence message — this is FR-007, not a bug.
 
 ```bash
-# 7. Run the test suite
-make test
+# 7. Run the complete backend check
+./scripts/check.sh
 
-# 8. Stop
-make down
+# 8. Stop the complete stack, including Ollama
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml \
+  -f deploy/local/docker-compose.ollama.yml down
 ```
 
 ## Docker workflow (`make dev`)
@@ -110,8 +158,10 @@ uv run uvicorn enterprise_rag_knowledge_assistant.main:app --reload
 ## Testing
 
 ```bash
-make test        # full suite with coverage
-make test-unit    # unit tests only
+docker compose -f deploy/local/docker-compose.yml \
+  -f deploy/local/docker-compose.override.yml up -d db minio
+./scripts/check.sh   # Ruff, mypy, and all pytest tests
+make test-unit      # unit tests only
 ```
 
 ## Linting / type-checking
@@ -124,17 +174,19 @@ make fmt   # auto-fix
 ## The full local CI-quality check
 
 ```bash
-make ci   # lint + test + build — the same target CI runs
+./scripts/check.sh   # the same backend command CI runs
+# `make ci` is a compatibility alias for the same script.
 ```
 
-For the frontend: `cd frontend && npm run lint && npm run build` (the CI `frontend` job runs the
-same two commands).
+The separate CI frontend job runs `npm ci`, `npm run lint`, and `npm run build`. The agent does not
+run these frontend commands on the constrained local machine.
 
 ## Common issues
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `uv: command not found` | uv not installed | Install per the prerequisites link above |
+| `docker version` cannot connect to the daemon | Docker Desktop is stopped or WSL integration is disabled | Start Docker Desktop and enable this WSL distribution under Docker Desktop settings |
 | Port 8000 already in use | Another instance still running | `make down`, or stop whatever else is on 8000 |
 | `.env` missing values after adding a new setting | `.env` predates the new field in `config.py` | Compare against `.env.example` and add the missing key |
 | `make ingest` fails with `httpx.ConnectError: Connection refused` on `localhost:11434` | No Ollama reachable at `LLM_BASE_URL` | Bring up the `docker-compose.ollama.yml` slice (step 2 of Quick start) and pull the models |
