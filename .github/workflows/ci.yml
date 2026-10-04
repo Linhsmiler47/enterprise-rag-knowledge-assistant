@@ -27,7 +27,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
       minio:
-        image: minio/minio:latest
+        image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
         command: server /data --console-address ":9001"
         env:
           MINIO_ROOT_USER: ragminio

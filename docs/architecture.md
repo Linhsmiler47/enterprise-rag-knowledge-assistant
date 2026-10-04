@@ -105,6 +105,10 @@ See [`adr/`](adr/):
 - No cloud deployment yet — local-first by explicit decision, not oversight (ADR-0010).
 - Local agent work targets an 8 GB Windows 11 machine with WSL2 limited to 3 GB. Backend checks
   run sequentially, and the frontend is not started or built locally.
+- Local development and CI pin the frozen community image
+  `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` because upstream MinIO community container images
+  are no longer publicly pullable. It preserves the current S3-compatible MinIO boundary but is
+  a development/test dependency, not a production hosting recommendation.
 
 ## Potential future evolution
 

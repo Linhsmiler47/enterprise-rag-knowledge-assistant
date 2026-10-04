@@ -187,6 +187,7 @@ run these frontend commands on the constrained local machine.
 |---|---|---|
 | `uv: command not found` | uv not installed | Install per the prerequisites link above |
 | `docker version` cannot connect to the daemon | Docker Desktop is stopped or WSL integration is disabled | Start Docker Desktop and enable this WSL distribution under Docker Desktop settings |
+| Docker cannot pull `minio/minio:latest` | Upstream community images are no longer publicly distributed | Pull the pinned `pgsty/minio:RELEASE.2026-08-04T00-00-00Z` image used by Compose and CI |
 | Port 8000 already in use | Another instance still running | `make down`, or stop whatever else is on 8000 |
 | `.env` missing values after adding a new setting | `.env` predates the new field in `config.py` | Compare against `.env.example` and add the missing key |
 | `make ingest` fails with `httpx.ConnectError: Connection refused` on `localhost:11434` | No Ollama reachable at `LLM_BASE_URL` | Bring up the `docker-compose.ollama.yml` slice (step 2 of Quick start) and pull the models |
