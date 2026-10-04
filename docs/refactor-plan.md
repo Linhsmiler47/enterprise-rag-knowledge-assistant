@@ -290,3 +290,22 @@ scheduled stage with before/after tests and evaluation where applicable.
 
 No refactor step should introduce LangChain, LangGraph, LlamaIndex, a repository framework,
 background workers, or new observability services.
+
+## Execution status (2026-10-04)
+
+R1, R2, R3, and part of R5 (stale ADR references, README CI job names, `_content_hash()` removal)
+are implemented and committed, one commit per step, each verified by `scripts/check.sh`. The rest
+of R5 (the `embedding_dimensions`/`RetrievedChunk.chunk_index`/`EvalCase.notes` disposition and the
+evaluation/observability wording) stays open because those documents/fields are not yet in scope.
+
+R4 and R6 are deferred:
+
+- **R4** (thin the document router): revisit at the start of Stage 3, once PDF ingestion
+  requirements are known. The document service boundary this step proposes should be shaped by
+  what PDF parsing actually needs (e.g. multi-step status transitions, format-specific validation)
+  rather than guessed ahead of that requirement and reworked later.
+- **R6** (test-client compatibility): the locked FastAPI/Starlette/httpx versions still emit the
+  `httpx2` deprecation warning but do not fail tests or CI. Deferred until the warning starts
+  causing real failures (a Starlette release removing the fallback) or a dependency bump is needed
+  for another reason — low current cost, and bundling it with unrelated work would make a future
+  dependency-induced test failure harder to isolate.
