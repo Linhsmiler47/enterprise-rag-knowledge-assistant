@@ -48,10 +48,6 @@ def content_hash_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _content_hash(content: str) -> str:
-    return content_hash_bytes(content.encode("utf-8"))
-
-
 def guess_content_type(suffix: str) -> str:
     return _CONTENT_TYPES_BY_EXTENSION.get(suffix.lower(), "text/plain")
 
@@ -99,7 +95,7 @@ def ingest_file(
         return IngestResult(filename=path.name, status="skipped")
 
     content = path.read_text(encoding="utf-8")
-    content_hash = _content_hash(content)
+    content_hash = content_hash_bytes(content.encode("utf-8"))
 
     existing = session.query(Document).filter_by(object_key=path.name).one_or_none()
     if existing is not None and existing.content_hash == content_hash:

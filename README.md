@@ -90,10 +90,11 @@ docker run -p 8000:8000 enterprise-rag-knowledge-assistant:latest
 
 ## CI
 
-`.github/workflows/ci.yml` runs two independent jobs on every pull request and push to `main`:
-`ci` (`./scripts/check.sh` — Ruff + mypy + pytest, with Postgres + MinIO service containers) and `frontend`
-(`npm ci && npm run lint && npm run build`). `.github/workflows/security.yml` runs dependency
-audit, secret scanning, and a filesystem vulnerability scan.
+`.github/workflows/ci.yml` runs three independent jobs on every pull request and push to `main`:
+`backend` (`./scripts/check.sh` — Ruff + mypy + pytest, with Postgres + MinIO service containers),
+`docker` (builds the backend image), and `frontend` (`npm ci && npm run lint && npm run build`).
+`.github/workflows/security.yml` runs dependency audit, secret scanning, and a filesystem
+vulnerability scan.
 
 ## Documentation
 

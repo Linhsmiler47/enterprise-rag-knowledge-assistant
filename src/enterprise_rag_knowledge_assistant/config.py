@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://rag:rag@localhost:5432/rag"
 
     # LLM/embedding provider boundary (see providers.py). "ollama" and "openai" both speak the
-    # OpenAI-compatible API — only base_url/api_key/model differ. See ADR-0001.
+    # OpenAI-compatible API — only base_url/api_key/model differ. See ADR-0002.
     llm_provider: str = "ollama"
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"  # Ollama ignores this; required by the OpenAI client shape.
@@ -30,11 +30,11 @@ class Settings(BaseSettings):
     llm_embedding_model: str = "all-minilm"
     embedding_dimensions: int = 384
 
-    # Chunking (see ADR-0002 / architecture.md)
+    # Chunking (see ADR-0003 / architecture.md)
     chunk_size_chars: int = 800
     chunk_overlap_chars: int = 100
 
-    # Retrieval (see ADR-0003)
+    # Retrieval (see ADR-0004)
     retrieval_top_k: int = 4
     retrieval_similarity_threshold: float = 0.3
 
