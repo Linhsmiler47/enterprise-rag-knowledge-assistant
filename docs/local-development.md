@@ -49,8 +49,9 @@ manually when inspecting the UI.
 ## Quick start (golden path)
 
 This is the full path from a fresh clone to a real, cited answer — every step is required, in
-order. It uses the local Ollama endpoint. Only the designated public sample PDFs introduced in
-Stage 3 may be sent to an external API; all other repository or user data must stay local.
+order. It uses the local Ollama endpoint. All documents in this learning project are public and
+may be sent to an external API. Never add internal company documents or personal data to the
+repository or corpus.
 
 ```bash
 # 1. Clone and set up

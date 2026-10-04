@@ -45,9 +45,10 @@ curl -s localhost:8000/query -X POST -H 'Content-Type: application/json' \
 ```
 
 Requires an OpenAI-compatible LLM/embedding endpoint reachable at `LLM_BASE_URL` (defaults to a
-local Ollama at `localhost:11434`). Use local Ollama for the current corpus. Only the designated
-public sample PDFs introduced in Stage 3 may be sent to an external API; no other repository or
-user data may leave the machine. See [`docs/local-development.md`](docs/local-development.md).
+local Ollama at `localhost:11434`). Use local Ollama for the current corpus. All documents in this
+learning project are public and may be sent to an external API. Never add internal company
+documents or personal data to the repository or corpus. See
+[`docs/local-development.md`](docs/local-development.md).
 
 Full instructions: [`docs/local-development.md`](docs/local-development.md).
 
