@@ -259,6 +259,8 @@ cho mỗi câu hỏi, cần ước lượng quota Gemini trước khi làm.
 - Giữ nguyên job frontend tách riêng hiện có để lint/build frontend
   trên CI; job này không gọi scripts/check.sh. Agent không chạy các
   bước frontend đó trên máy local.
+- Job Docker tách riêng chỉ build backend image để kiểm tra Dockerfile;
+  không push image.
 - Postgres (có pgvector) và MinIO chạy dạng service container trong CI.
 - Test không được gọi API bên ngoài hay Ollama. LLM và embedding dùng
   provider giả trong test.

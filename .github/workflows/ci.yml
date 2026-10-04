@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  ci:
+  backend:
     runs-on: ubuntu-latest
 
     services:
@@ -63,6 +63,15 @@ jobs:
 
       - name: Backend checks
         run: ./scripts/check.sh
+
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker build --tag enterprise-rag-knowledge-assistant:ci .
 
   frontend:
     runs-on: ubuntu-latest
