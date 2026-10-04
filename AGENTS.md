@@ -118,6 +118,7 @@ link nào thì báo lại, không tự đoán nội dung.
   lời (tốn quota). Guardrail hiện có theo ADR-0008 giữ nguyên.
 - Không sửa frontend/, infra/ và phần MinIO, trừ khi cần để test pass.
 - Không triển khai lên cloud, không chạy terraform apply.
+- Không tạo git tag, không kích hoạt release.
 - Không commit file PDF, API key hay file .env vào repo. Không đưa API
   key lên GitHub Secrets.
 - Không đưa tài liệu nội bộ công ty hay dữ liệu cá nhân vào repo hoặc
