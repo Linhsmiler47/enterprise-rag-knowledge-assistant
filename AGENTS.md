@@ -120,7 +120,8 @@ link nào thì báo lại, không tự đoán nội dung.
 - Không triển khai lên cloud, không chạy terraform apply.
 - Không commit file PDF, API key hay file .env vào repo. Không đưa API
   key lên GitHub Secrets.
-- Không gửi dữ liệu nào ngoài các PDF mẫu công khai tới API bên ngoài.
+- Không đưa tài liệu nội bộ công ty hay dữ liệu cá nhân vào repo hoặc
+  vào corpus.
 - Không bật billing cho Gemini. Chỉ dùng trong giới hạn free tier.
 - Không dùng model local lớn hơn khoảng 1.5GB.
 

@@ -4,9 +4,9 @@
 
 A FastAPI backend (+ an optional Next.js product UI, Phase 2) backed by PostgreSQL/pgvector for
 metadata/chunks/embeddings and MinIO for raw uploaded files, answering questions grounded in a
-small internal knowledge base, using a local (or optionally external) LLM through a narrow
-provider boundary. External APIs may receive only the designated public sample PDFs; all other
-repository and user data stays local.
+small public knowledge base, using a local (or optionally external) LLM through a narrow provider
+boundary. All documents in this learning project are public and may be sent to an external API;
+internal company documents and personal data must never enter the repository or corpus.
 
 ## Current architecture
 
