@@ -56,6 +56,17 @@ def guess_content_type(suffix: str) -> str:
     return _CONTENT_TYPES_BY_EXTENSION.get(suffix.lower(), "text/plain")
 
 
+def _prepare_chunks_and_embeddings(
+    content: str, provider: LLMProvider, settings: Settings
+) -> tuple[list[str], list[list[float]]]:
+    """Shared chunk+embed preparation for both ingest entry points (see module docstring)."""
+    chunks = chunk_text(
+        content, chunk_size=settings.chunk_size_chars, overlap=settings.chunk_overlap_chars
+    )
+    embeddings = provider.embed_batch(chunks)
+    return chunks, embeddings
+
+
 def _store_chunks(
     document_id: int, chunks: list[str], embeddings: list[list[float]], session: Session
 ) -> None:
@@ -99,14 +110,10 @@ def ingest_file(
         session.delete(existing)
         session.flush()
 
-    chunks = chunk_text(
-        content, chunk_size=settings.chunk_size_chars, overlap=settings.chunk_overlap_chars
-    )
+    chunks, embeddings = _prepare_chunks_and_embeddings(content, provider, settings)
     if not chunks:
         logger.warning("no content extracted from %s", path.name)
         return IngestResult(filename=path.name, status="skipped")
-
-    embeddings = provider.embed_batch(chunks)
 
     document = Document(
         object_key=path.name,
@@ -154,9 +161,7 @@ def ingest_uploaded_document(
         # Replace any prior chunks (re-ingest after a fix, e.g. following a failure).
         session.query(Chunk).filter_by(document_id=document.id).delete()
 
-        chunks = chunk_text(
-            content, chunk_size=settings.chunk_size_chars, overlap=settings.chunk_overlap_chars
-        )
+        chunks, embeddings = _prepare_chunks_and_embeddings(content, provider, settings)
         if not chunks:
             document.status = STATUS_FAILED
             document.ingestion_error = "no content extracted"
@@ -164,7 +169,6 @@ def ingest_uploaded_document(
             logger.warning("no content extracted from document_id=%s", document.id)
             return IngestResult(filename=document.original_filename, status="failed")
 
-        embeddings = provider.embed_batch(chunks)
         _store_chunks(document.id, chunks, embeddings, session)
 
         document.status = STATUS_INGESTED
