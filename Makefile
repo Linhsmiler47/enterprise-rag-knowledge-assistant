@@ -33,7 +33,8 @@ fmt: ## Auto-format
 build: ## Build the Docker image
 	docker build -t $(IMAGE_NAME):latest .
 
-ci: lint test build ## The single target CI calls: lint + test + build
+ci: ## Run the backend CI checks (Ruff + mypy + pytest)
+	./scripts/check.sh
 
 smoke: ## Smoke-test a running instance (BASE_URL=http://localhost:8000)
 	./scripts/smoke-test.sh $${BASE_URL:-http://localhost:8000}
