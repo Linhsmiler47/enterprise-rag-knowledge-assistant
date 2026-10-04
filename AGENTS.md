@@ -309,5 +309,6 @@ trước khi báo là xong:
   liệu trong docs/ bằng tiếng Anh, theo đúng ngôn ngữ hiện có của repo.
 
 ## Trạng thái hiện tại
-- Giai đoạn đang làm: 1
-- Đã hoàn thành: Giai đoạn 0
+- Giai đoạn đang làm: chưa bắt đầu Giai đoạn 2; chờ duyệt
+  docs/refactor-plan.md
+- Đã hoàn thành: Giai đoạn 0, Giai đoạn 1
